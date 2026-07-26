@@ -1,10 +1,10 @@
-name: CI/CD - Tests, Build et Push Docker
+name: CI/CD - Multi-environnements
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging, dev]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 jobs:
   test:
@@ -28,7 +28,7 @@ jobs:
 
   build-and-push:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
@@ -40,9 +40,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Définir le tag selon la branche
+        id: vars
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=staging" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build et push de l'image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/mon-api-flask:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/mon-api-flask:${{ steps.vars.outputs.tag }}
